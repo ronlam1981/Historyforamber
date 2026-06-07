@@ -309,7 +309,13 @@
       <button class="role-btn selected" id="roleParent" onclick="selectRole('parent')">👨‍👩‍👧 家長登入</button>
       <button class="role-btn" id="roleStudent" onclick="selectRole('student')">🎒 學生登入</button>
     </div>
-    <input class="name-input" id="nameInput" type="text" placeholder="請輸入姓名（可留空使用預設名稱）" maxlength="20">
+    <div id="parentFields">
+      <input class="name-input" id="passwordInput" type="password" placeholder="請輸入家長密碼">
+      <div id="loginError" style="color:var(--danger);font-size:0.85rem;margin-bottom:12px;display:none;">密碼錯誤，請重試</div>
+    </div>
+    <div id="studentFields" style="display:none;">
+      <input class="name-input" id="nameInput" type="text" placeholder="請輸入姓名（可留空使用預設名稱）" maxlength="20">
+    </div>
     <button class="btn-primary" onclick="doLogin()">進入系統</button>
   </div>
 </div>
@@ -582,15 +588,28 @@ function launchConfetti() {
 }
 
 // ===================== LOGIN =====================
+const PARENT_PASSWORD = '4321';
 let selectedRole = 'parent';
 function selectRole(role) {
   selectedRole = role;
   document.getElementById('roleParent').classList.toggle('selected', role==='parent');
   document.getElementById('roleStudent').classList.toggle('selected', role==='student');
+  document.getElementById('parentFields').style.display = role==='parent' ? '' : 'none';
+  document.getElementById('studentFields').style.display = role==='student' ? '' : 'none';
+  document.getElementById('loginError').style.display = 'none';
 }
 function doLogin() {
-  const name = document.getElementById('nameInput').value.trim() ||
-    (selectedRole === 'parent' ? DEFAULT_NAME_PARENT : DEFAULT_NAME_STUDENT);
+  if (selectedRole === 'parent') {
+    const pwd = document.getElementById('passwordInput').value;
+    if (pwd !== PARENT_PASSWORD) {
+      document.getElementById('loginError').style.display = 'block';
+      document.getElementById('passwordInput').value = '';
+      document.getElementById('passwordInput').focus();
+      return;
+    }
+  }
+  const name = selectedRole === 'parent' ? DEFAULT_NAME_PARENT :
+    (document.getElementById('nameInput').value.trim() || DEFAULT_NAME_STUDENT);
   state.user = { name, role: selectedRole };
   document.getElementById('topbarUser').innerHTML =
     `${name} <span class="tag tag-${selectedRole}">${selectedRole==='parent'?'家長':'學生'}</span>`;
@@ -598,10 +617,14 @@ function doLogin() {
   renderMain();
   showScreen('mainScreen');
 }
+document.getElementById('passwordInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('nameInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 function doLogout() {
   showScreen('loginScreen');
+  document.getElementById('passwordInput').value = '';
   document.getElementById('nameInput').value = '';
+  document.getElementById('loginError').style.display = 'none';
+  selectRole('parent');
 }
 
 // ===================== MAIN MENU =====================
