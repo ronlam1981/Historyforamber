@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>歷史學習與測驗平台</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
   :root {
     --primary: #4f46e5;
@@ -411,14 +412,15 @@
     <div class="divider">選擇新增方式</div>
 
     <div style="margin-bottom:16px;">
-      <label class="form-label">📁 上載 CSV / JSON 文件</label>
+      <label class="form-label">📁 上載題庫文件（PDF / CSV / JSON）</label>
       <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-        <input type="file" id="fileInput" accept=".csv,.json" onchange="handleFileUpload(event)">
+        <input type="file" id="fileInput" accept=".pdf,.csv,.json" onchange="handleFileUpload(event)">
         <div style="font-size:1.8rem;margin-bottom:8px;">📄</div>
-        <div>點擊選擇文件（CSV 或 JSON）</div>
-        <div style="font-size:0.8rem;margin-top:6px;">CSV格式：question,A,B,C,D,answer,explanation</div>
+        <div>點擊選擇文件（PDF、CSV 或 JSON）</div>
+        <div style="font-size:0.8rem;margin-top:6px;color:var(--text-muted);">PDF 會自動提取題庫名稱及所有題目</div>
+        <div style="font-size:0.8rem;margin-top:2px;color:var(--text-muted);">CSV 格式：question,A,B,C,D,answer,explanation</div>
       </div>
-      <div id="uploadStatus" style="font-size:0.85rem;margin-top:8px;color:var(--success);"></div>
+      <div id="uploadStatus" style="font-size:0.85rem;margin-top:8px;"></div>
     </div>
 
     <div class="divider">或手動輸入</div>
@@ -660,12 +662,15 @@ function backToMain() {
 
 // ===================== ADD BANK MODAL =====================
 let uploadedQuestions = [];
+let uploadedBankName = '';
 let manualQCount = 0;
 function openAddBankModal() {
   uploadedQuestions = [];
+  uploadedBankName = '';
   manualQCount = 0;
   document.getElementById('bankNameInput').value = '';
   document.getElementById('uploadStatus').textContent = '';
+  document.getElementById('fileInput').value = '';
   document.getElementById('manualQList').innerHTML = '';
   document.getElementById('addBankModal').classList.add('active');
   addManualQ();
@@ -710,26 +715,187 @@ function addManualQ() {
     </div>`;
   document.getElementById('manualQList').appendChild(div);
 }
+function setUploadStatus(msg, ok) {
+  const el = document.getElementById('uploadStatus');
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--text-muted)';
+}
+
 function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev) {
-    const content = ev.target.result;
-    try {
-      if (file.name.endsWith('.json')) {
-        const data = JSON.parse(content);
-        uploadedQuestions = parseJsonQuestions(data);
-      } else {
-        uploadedQuestions = parseCsvQuestions(content);
+  setUploadStatus('⏳ 正在解析文件…', null);
+  uploadedBankName = '';
+
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    parsePdfFile(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        if (file.name.endsWith('.json')) {
+          uploadedQuestions = parseJsonQuestions(JSON.parse(ev.target.result));
+        } else {
+          uploadedQuestions = parseCsvQuestions(ev.target.result);
+        }
+        setUploadStatus(`✓ 成功解析 ${uploadedQuestions.length} 道題目`, true);
+      } catch(err) {
+        setUploadStatus(`✗ 解析失敗：${err.message}`, false);
+        uploadedQuestions = [];
       }
-      document.getElementById('uploadStatus').textContent = `✓ 成功解析 ${uploadedQuestions.length} 道題目`;
-    } catch(err) {
-      document.getElementById('uploadStatus').textContent = `✗ 解析失敗：${err.message}`;
-      uploadedQuestions = [];
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+}
+
+async function parsePdfFile(file) {
+  try {
+    // Configure PDF.js worker
+    if (typeof pdfjsLib === 'undefined') {
+      setUploadStatus('✗ PDF 解析器未載入，請重新整理頁面', false);
+      return;
     }
-  };
-  reader.readAsText(file, 'UTF-8');
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // join items, preserve line breaks by y-position
+      let lastY = null;
+      for (const item of content.items) {
+        if (lastY !== null && Math.abs(item.transform[5] - lastY) > 2) {
+          fullText += '\n';
+        }
+        fullText += item.str;
+        lastY = item.transform[5];
+      }
+      fullText += '\n';
+    }
+
+    const { questions, bankName } = parsePdfText(fullText, file.name);
+    uploadedQuestions = questions;
+
+    if (bankName) {
+      uploadedBankName = bankName;
+      const nameInput = document.getElementById('bankNameInput');
+      if (!nameInput.value.trim()) nameInput.value = bankName;
+    }
+
+    if (questions.length === 0) {
+      setUploadStatus('✗ 未能在 PDF 中找到題目，請確認格式是否正確', false);
+    } else {
+      setUploadStatus(`✓ 成功從 PDF 提取 ${questions.length} 道題目${bankName ? '，題庫名稱：「' + bankName + '」' : ''}`, true);
+    }
+  } catch(err) {
+    setUploadStatus(`✗ PDF 解析失敗：${err.message}`, false);
+    uploadedQuestions = [];
+  }
+}
+
+function parsePdfText(text, filename) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+  // Extract bank name: first non-empty line that looks like a title (not a question)
+  let bankName = '';
+  for (const line of lines.slice(0, 5)) {
+    if (line && !line.match(/^\d+[\.、]/) && !line.match(/^[A-D][\.、]/) && line.length > 4) {
+      bankName = line.replace(/附詳盡.*$/, '').trim();
+      break;
+    }
+  }
+  // Fallback to filename
+  if (!bankName) {
+    bankName = filename.replace(/\.[^.]+$/, '').replace(/[_\-v\d]+$/i, '').replace(/[_\-]/g, ' ').trim();
+  }
+
+  const questions = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Detect question start: line begins with number followed by . or 、or ）
+    const qMatch = line.match(/^(\d+)[\.、｡）\)]\s*(.+)/);
+    if (!qMatch) { i++; continue; }
+
+    let qNum = parseInt(qMatch[1]);
+    let qText = qMatch[2];
+    i++;
+
+    // Collect multiline question text (until we hit an option line)
+    while (i < lines.length && !lines[i].match(/^[A-D][\.、｡）\)]\s*/)) {
+      const next = lines[i];
+      // Stop if it's another question or answer line
+      if (next.match(/^\d+[\.、]/) || next.match(/^正確答案/) || next.match(/^解析/)) break;
+      qText += ' ' + next;
+      i++;
+    }
+
+    // Collect options A-D
+    const opts = { A: '', B: '', C: '', D: '' };
+    const optOrder = ['A','B','C','D'];
+    let optIdx = 0;
+    while (i < lines.length && optIdx < 4) {
+      const optLine = lines[i];
+      const optMatch = optLine.match(/^([A-D])[\.、｡）\)]\s*(.+)/);
+      if (optMatch) {
+        opts[optMatch[1]] = optMatch[2];
+        optIdx++;
+        i++;
+      } else if (optLine.match(/^正確答案/) || optLine.match(/^解析/) || optLine.match(/^\d+[\.、]/)) {
+        break;
+      } else {
+        // continuation of last option
+        if (optIdx > 0) {
+          const lastOpt = optOrder[optIdx - 1];
+          opts[lastOpt] += ' ' + optLine;
+        }
+        i++;
+      }
+    }
+
+    // Correct answer
+    let answer = '';
+    if (i < lines.length && lines[i].match(/^正確答案/)) {
+      const m = lines[i].match(/[A-D]/);
+      if (m) answer = m[0];
+      i++;
+    }
+
+    // Explanation — collect until next question or end
+    let explanation = '';
+    if (i < lines.length && lines[i].match(/^解析/)) {
+      const expLine = lines[i].replace(/^解析[：:]\s*/, '');
+      explanation = expLine;
+      i++;
+      while (i < lines.length) {
+        const next = lines[i];
+        if (next.match(/^\d+[\.、]/) || next.match(/^正確答案/) || next.match(/^解析/) || next.match(/^-\s*\d+\s*-/) || next.match(/^第.+部分/)) break;
+        explanation += ' ' + next;
+        i++;
+      }
+      explanation = explanation.trim();
+    }
+
+    if (qText && opts.A && answer) {
+      questions.push({
+        q: qText.trim(),
+        A: opts.A.trim(),
+        B: opts.B.trim(),
+        C: opts.C.trim(),
+        D: opts.D.trim(),
+        answer,
+        explanation
+      });
+    }
+  }
+
+  return { questions, bankName };
 }
 function parseJsonQuestions(data) {
   const arr = Array.isArray(data) ? data : data.questions || [];
