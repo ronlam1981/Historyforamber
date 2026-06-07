@@ -459,7 +459,8 @@
 // ===================== STATE =====================
 let state = {
   user: { name: '', role: 'student' },
-  banks: {}, // { id: { name, questions:[{q,A,B,C,D,answer,explanation}], progress:{id:{correct:0}}, logs:[] } }
+  banks: {}, // { id: { name, questions[] } }
+  studentData: {}, // { studentName: { bankId: { progress:{}, logs:[] } } }
   currentBankId: null,
   // learn
   learnQueue: [],
@@ -479,18 +480,35 @@ const DEFAULT_NAME_STUDENT = '同學';
 
 // ===================== PERSISTENCE =====================
 function saveState() {
-  localStorage.setItem('historyPlatform_v3', JSON.stringify({
-    banks: state.banks
-  }));
+  localStorage.setItem('historyPlatform_banks', JSON.stringify(state.banks));
+  localStorage.setItem('historyPlatform_students', JSON.stringify(state.studentData));
 }
 function loadState() {
   try {
-    const raw = localStorage.getItem('historyPlatform_v3');
-    if (raw) {
-      const data = JSON.parse(raw);
-      state.banks = data.banks || {};
+    const banks = localStorage.getItem('historyPlatform_banks');
+    if (banks) state.banks = JSON.parse(banks);
+    const students = localStorage.getItem('historyPlatform_students');
+    if (students) state.studentData = JSON.parse(students);
+    // migrate old v3 format
+    const old = localStorage.getItem('historyPlatform_v3');
+    if (old) {
+      const data = JSON.parse(old);
+      if (data.banks) {
+        Object.entries(data.banks).forEach(([id, b]) => {
+          state.banks[id] = { name: b.name, questions: b.questions };
+        });
+      }
+      localStorage.removeItem('historyPlatform_v3');
+      saveState();
     }
   } catch(e) {}
+}
+
+function getStudentBankData(bankId) {
+  const name = state.user.name;
+  if (!state.studentData[name]) state.studentData[name] = {};
+  if (!state.studentData[name][bankId]) state.studentData[name][bankId] = { progress: {}, logs: [] };
+  return state.studentData[name][bankId];
 }
 
 // ===================== UTILS =====================
@@ -652,7 +670,8 @@ function renderMain() {
 function countMemorized(bankId) {
   const b = state.banks[bankId];
   if (!b) return 0;
-  return b.questions.filter((q,i) => ((b.progress[i]||{}).correct || 0) >= 2).length;
+  const sd = getStudentBankData(bankId);
+  return b.questions.filter((q,i) => ((sd.progress[i]||{}).correct || 0) >= 2).length;
 }
 function selectBank(id) {
   state.currentBankId = id;
@@ -676,6 +695,8 @@ function updateBankInfo() {
 function deleteBank(id) {
   showConfirm('確定刪除題庫？', `刪除「${state.banks[id].name}」將同時清除所有進度和記錄，此操作不可撤銷。`, () => {
     delete state.banks[id];
+    // remove from all students
+    Object.values(state.studentData).forEach(sd => { delete sd[id]; });
     if (state.currentBankId === id) state.currentBankId = null;
     saveState();
     renderMain();
@@ -985,7 +1006,7 @@ function confirmAddBank() {
   if (questions.length === 0) { alert('請至少輸入一道題目'); return; }
 
   const id = genId();
-  state.banks[id] = { name, questions, progress: {}, logs: [] };
+  state.banks[id] = { name, questions };
   state.currentBankId = id;
   saveState();
   closeAddBankModal();
@@ -1003,7 +1024,8 @@ function startLearn() {
   if (!b || b.questions.length === 0) { alert('此題庫沒有題目'); return; }
 
   // get unmemorized questions in order
-  const unmemorized = b.questions.map((q,i) => i).filter(i => ((b.progress[i]||{}).correct || 0) < 2);
+  const sd = getStudentBankData(state.currentBankId);
+  const unmemorized = b.questions.map((q,i) => i).filter(i => ((sd.progress[i]||{}).correct || 0) < 2);
   if (unmemorized.length === 0) {
     showConfirm('🎉 全部熟記！', '您已熟記本題庫所有題目！是否要繼續測驗挑戰？', () => { backToMain(); startExam(); }, true);
     return;
@@ -1023,7 +1045,8 @@ function renderLearnQ() {
     // round complete
     const b = state.banks[state.currentBankId];
     const elapsed = Math.round((Date.now() - state.learnSessionStart) / 60000);
-    b.logs.push({ user: state.user.name, type: 'learn', time: Date.now(), elapsed });
+    const sdLog = getStudentBankData(state.currentBankId);
+    sdLog.logs.push({ user: state.user.name, type: 'learn', time: Date.now(), elapsed });
     saveState();
     document.getElementById('learnContainer').innerHTML = `
       <div class="complete-box">
@@ -1041,7 +1064,8 @@ function renderLearnQ() {
   const b = state.banks[state.currentBankId];
   const qIdx = learnRoundQueue[learnCurrentIdx];
   const q = b.questions[qIdx];
-  const prog = b.progress[qIdx] || { correct: 0 };
+  const sd = getStudentBankData(state.currentBankId);
+  const prog = sd.progress[qIdx] || { correct: 0 };
   learnAnswered = false;
 
   document.getElementById('learnContainer').innerHTML = `
@@ -1063,8 +1087,9 @@ function learnAnswer(chosen, qIdx) {
   learnAnswered = true;
   const b = state.banks[state.currentBankId];
   const q = b.questions[qIdx];
-  if (!b.progress[qIdx]) b.progress[qIdx] = { correct: 0 };
-  const prog = b.progress[qIdx];
+  const sd = getStudentBankData(state.currentBankId);
+  if (!sd.progress[qIdx]) sd.progress[qIdx] = { correct: 0 };
+  const prog = sd.progress[qIdx];
   const isCorrect = chosen === q.answer;
 
   ['A','B','C','D'].forEach(opt => {
@@ -1183,7 +1208,8 @@ function finishExam() {
 
   const elapsed = Math.round((Date.now() - state.examSessionStart) / 60000);
   const b = state.banks[state.currentBankId];
-  b.logs.push({ user: state.user.name, type: 'exam', time: Date.now(), elapsed, score });
+  const sdExam = getStudentBankData(state.currentBankId);
+  sdExam.logs.push({ user: state.user.name, type: 'exam', time: Date.now(), elapsed, score });
   saveState();
 
   // render result
@@ -1270,42 +1296,96 @@ function reviewNext() {
 // ===================== STATS =====================
 function goStats() {
   const content = document.getElementById('statsContent');
+  const isParent = state.user.role === 'parent';
   let html = '';
+
   Object.entries(state.banks).forEach(([id, b]) => {
-    const mem = countMemorized(id);
     const total = b.questions.length;
-    const pct = total ? Math.round(mem/total*100) : 0;
-    html += `<div class="stats-card">
-      <div class="stats-title">📚 ${escHtml(b.name)}</div>
-      <div class="progress-bar-wrap">
-        <div class="progress-label"><span>熟記進度</span><span>${mem}/${total} (${pct}%)</span></div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
-      </div>
-      <div class="log-list">`;
-    if (b.logs.length === 0) {
-      html += `<div style="color:var(--text-muted);font-size:0.85rem;">暫無記錄</div>`;
+
+    if (isParent) {
+      // parent sees all students' data for each bank
+      html += `<div class="stats-card"><div class="stats-title">📚 ${escHtml(b.name)}</div>`;
+      const studentNames = Object.keys(state.studentData);
+      if (studentNames.length === 0) {
+        html += `<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">暫無學生記錄</div>`;
+      } else {
+        studentNames.forEach(sName => {
+          const sd = state.studentData[sName]?.[id];
+          if (!sd) return;
+          const mem = b.questions.filter((q,i) => ((sd.progress[i]||{}).correct || 0) >= 2).length;
+          const pct = total ? Math.round(mem/total*100) : 0;
+          html += `<div style="margin-bottom:12px;">
+            <div style="font-size:0.9rem;font-weight:600;color:var(--text-muted);margin-bottom:6px;">👤 ${escHtml(sName)} — ${mem}/${total} (${pct}%)</div>
+            <div class="progress-bar" style="margin-bottom:8px;"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="log-list" style="max-height:200px;">`;
+          if (!sd.logs || sd.logs.length === 0) {
+            html += `<div style="color:var(--text-muted);font-size:0.8rem;">暫無記錄</div>`;
+          } else {
+            [...sd.logs].reverse().forEach(log => {
+              const typeLabel = log.type === 'exam' ? '⚔️ 測驗' : '📖 學習';
+              let scoreHtml = '';
+              if (log.type === 'exam' && log.score !== undefined) {
+                const cls = log.score === 100 ? 'log-score-perfect' : log.score >= 60 ? 'log-score-pass' : 'log-score-fail';
+                scoreHtml = `<span class="${cls}">${log.score} 分</span>`;
+              }
+              html += `<div class="log-item">
+                <div class="log-item-top"><span class="log-type">${typeLabel}</span>${scoreHtml}</div>
+                <div class="log-meta">📅 ${fmtDate(log.time)} · ⏱ ${log.elapsed || 0} 分鐘</div>
+              </div>`;
+            });
+          }
+          html += `</div></div>`;
+        });
+      }
+      html += `</div>`;
     } else {
-      [...b.logs].reverse().forEach(log => {
-        const typeLabel = log.type === 'exam' ? '⚔️ 測驗' : '📖 學習';
-        let scoreHtml = '';
-        if (log.type === 'exam' && log.score !== undefined) {
-          const cls = log.score === 100 ? 'log-score-perfect' : log.score >= 60 ? 'log-score-pass' : 'log-score-fail';
-          scoreHtml = `<span class="${cls}">${log.score} 分</span>`;
-        }
-        html += `<div class="log-item">
-          <div class="log-item-top">
-            <span class="log-type">${typeLabel} — ${escHtml(log.user)}</span>
-            ${scoreHtml}
-          </div>
-          <div class="log-meta">📅 ${fmtDate(log.time)} · ⏱ ${log.elapsed || 0} 分鐘</div>
-        </div>`;
-      });
+      // student sees only their own data
+      const sd = getStudentBankData(id);
+      const mem = b.questions.filter((q,i) => ((sd.progress[i]||{}).correct || 0) >= 2).length;
+      const pct = total ? Math.round(mem/total*100) : 0;
+      html += `<div class="stats-card">
+        <div class="stats-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>📚 ${escHtml(b.name)}</span>
+          <button onclick="confirmClearRecord('${id}')" style="padding:6px 12px;border-radius:8px;border:1px solid var(--danger);background:transparent;color:var(--danger);cursor:pointer;font-size:0.8rem;">🗑 清除記錄</button>
+        </div>
+        <div class="progress-bar-wrap">
+          <div class="progress-label"><span>${state.user.name} 的進度</span><span>${mem}/${total} (${pct}%)</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        </div>
+        <div class="log-list">`;
+      if (!sd.logs || sd.logs.length === 0) {
+        html += `<div style="color:var(--text-muted);font-size:0.85rem;">暫無記錄</div>`;
+      } else {
+        [...sd.logs].reverse().forEach(log => {
+          const typeLabel = log.type === 'exam' ? '⚔️ 測驗' : '📖 學習';
+          let scoreHtml = '';
+          if (log.type === 'exam' && log.score !== undefined) {
+            const cls = log.score === 100 ? 'log-score-perfect' : log.score >= 60 ? 'log-score-pass' : 'log-score-fail';
+            scoreHtml = `<span class="${cls}">${log.score} 分</span>`;
+          }
+          html += `<div class="log-item">
+            <div class="log-item-top"><span class="log-type">${typeLabel}</span>${scoreHtml}</div>
+            <div class="log-meta">📅 ${fmtDate(log.time)} · ⏱ ${log.elapsed || 0} 分鐘</div>
+          </div>`;
+        });
+      }
+      html += `</div></div>`;
     }
-    html += `</div></div>`;
   });
   if (!html) html = `<div class="stats-card"><div class="no-banks">尚無學習記錄，請先建立題庫並開始學習。</div></div>`;
   content.innerHTML = html;
   showScreen('statsScreen');
+}
+
+function confirmClearRecord(bankId) {
+  const b = state.banks[bankId];
+  showConfirm('確定清除學習記錄？', `將清除您在「${b.name}」的所有進度及記錄，此操作不可撤銷。`, () => {
+    if (state.studentData[state.user.name]) {
+      delete state.studentData[state.user.name][bankId];
+    }
+    saveState();
+    goStats();
+  });
 }
 
 // ===================== SCREENSHOT =====================
