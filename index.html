@@ -5,3 +5,1360 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>歷史學習與測驗平台</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --primary: #4f46e5;
+    --primary-dark: #3730a3;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #2d3748;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border: #334155;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  #app { min-height: 100vh; }
+
+  /* ===== SCREENS ===== */
+  .screen { display: none; min-height: 100vh; padding: 20px; }
+  .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+  /* ===== LOGIN ===== */
+  #loginScreen {
+    justify-content: center;
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  }
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+  }
+  .login-title { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+  .login-subtitle { color: var(--text-muted); margin-bottom: 30px; font-size: 0.95rem; }
+  .role-btns { display: flex; gap: 12px; margin-bottom: 24px; }
+  .role-btn {
+    flex: 1; padding: 14px; border-radius: 12px; border: 2px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer; font-size: 1rem;
+    transition: all 0.2s;
+  }
+  .role-btn:hover { border-color: var(--primary); }
+  .role-btn.selected { border-color: var(--primary); background: rgba(79,70,229,0.2); }
+  .name-input {
+    width: 100%; padding: 14px 16px; border-radius: 12px;
+    border: 2px solid var(--border); background: var(--surface2);
+    color: var(--text); font-size: 1rem; margin-bottom: 16px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .name-input:focus { border-color: var(--primary); }
+  .name-input::placeholder { color: var(--text-muted); }
+  .btn-primary {
+    width: 100%; padding: 14px; border-radius: 12px; border: none;
+    background: var(--primary); color: white; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    width: 100%; max-width: 900px; display: flex; align-items: center;
+    justify-content: space-between; padding: 16px 0; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-title { font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+  .topbar-user { font-size: 0.85rem; color: var(--text-muted); }
+  .btn-sm {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer; font-size: 0.85rem;
+    transition: all 0.2s;
+  }
+  .btn-sm:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ===== MAIN MENU ===== */
+  #mainScreen { padding: 20px; }
+  .main-content { width: 100%; max-width: 900px; }
+  .section-title { font-size: 1.1rem; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; }
+  .banks-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .bank-card {
+    background: var(--surface); border: 2px solid var(--border); border-radius: 16px;
+    padding: 20px; cursor: pointer; transition: all 0.2s; position: relative;
+  }
+  .bank-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+  .bank-card.selected { border-color: var(--primary); background: rgba(79,70,229,0.1); }
+  .bank-card-name { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .bank-card-count { font-size: 0.8rem; color: var(--text-muted); }
+  .bank-card-del {
+    position: absolute; top: 10px; right: 10px; background: none; border: none;
+    color: var(--danger); cursor: pointer; font-size: 1rem; opacity: 0.5;
+    transition: opacity 0.2s;
+  }
+  .bank-card-del:hover { opacity: 1; }
+  .add-bank-card {
+    background: var(--surface); border: 2px dashed var(--border); border-radius: 16px;
+    padding: 20px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    color: var(--text-muted); font-size: 0.95rem;
+  }
+  .add-bank-card:hover { border-color: var(--primary); color: var(--primary); }
+
+  .action-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn-action {
+    flex: 1; min-width: 160px; padding: 16px 20px; border-radius: 14px; border: none;
+    font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-learn { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+  .btn-learn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(16,185,129,0.3); }
+  .btn-exam { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+  .btn-exam:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(245,158,11,0.3); }
+  .btn-stats { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; }
+  .btn-stats:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(99,102,241,0.3); }
+
+  .progress-bar-wrap { margin: 20px 0; }
+  .progress-label { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.9rem; }
+  .progress-bar { height: 10px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--success)); border-radius: 999px; transition: width 0.5s; }
+
+  /* ===== QUESTION CARD ===== */
+  #learnScreen, #examScreen { padding: 20px; }
+  .q-container { width: 100%; max-width: 700px; }
+  .q-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+  .q-progress { font-size: 0.9rem; color: var(--text-muted); }
+  .q-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 28px; margin-bottom: 20px;
+  }
+  .q-text { font-size: 1.05rem; line-height: 1.7; margin-bottom: 24px; }
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option-btn {
+    padding: 14px 18px; border-radius: 12px; border: 2px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer;
+    font-size: 0.95rem; text-align: left; transition: all 0.2s; line-height: 1.5;
+  }
+  .option-btn:hover:not(:disabled) { border-color: var(--primary); background: rgba(79,70,229,0.1); }
+  .option-btn.correct { border-color: var(--success) !important; background: rgba(16,185,129,0.2) !important; color: #34d399 !important; }
+  .option-btn.wrong { border-color: var(--danger) !important; background: rgba(239,68,68,0.2) !important; color: #f87171 !important; }
+  .option-btn.correct::after { content: ' ✓ 正確答案'; font-weight: 700; }
+  .option-btn.wrong::after { content: ' ✗ 答錯了'; font-weight: 700; }
+  .option-btn:disabled { cursor: default; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+  .shake { animation: shake 0.4s ease; }
+
+  .explanation-card {
+    background: linear-gradient(135deg, rgba(79,70,229,0.1), rgba(16,185,129,0.1));
+    border: 1px solid rgba(79,70,229,0.3); border-radius: 16px; padding: 20px;
+    margin-top: 16px; animation: slideDown 0.3s ease;
+  }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+  .explanation-title { font-weight: 700; color: var(--primary); margin-bottom: 10px; font-size: 0.95rem; }
+  .explanation-text { line-height: 1.7; color: var(--text); font-size: 0.9rem; }
+  .btn-understood {
+    margin-top: 14px; padding: 10px 24px; border-radius: 10px; border: none;
+    background: var(--primary); color: white; cursor: pointer; font-size: 0.95rem; font-weight: 600;
+    transition: all 0.2s;
+  }
+  .btn-understood:hover { background: var(--primary-dark); }
+
+  /* ===== RESULT SCREEN ===== */
+  #resultScreen { padding: 20px; justify-content: center; }
+  .result-box {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 24px;
+    padding: 40px; width: 100%; max-width: 560px; text-align: center;
+  }
+  .result-score { font-size: 5rem; font-weight: 900; line-height: 1; margin: 16px 0; }
+  .result-score.perfect { color: var(--success); }
+  .result-score.good { color: var(--warning); }
+  .result-score.fail { color: var(--danger); }
+  .result-msg { font-size: 1.1rem; margin-bottom: 24px; color: var(--text-muted); }
+  .result-btns { display: flex; flex-direction: column; gap: 10px; }
+  .btn-review { padding: 14px; border-radius: 12px; border: none; background: var(--warning); color: #1a1a1a; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn-review:hover { transform: translateY(-2px); }
+  .btn-retry { padding: 14px; border-radius: 12px; border: none; background: var(--primary); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .btn-retry:hover { transform: translateY(-2px); }
+  .btn-screenshot { padding: 14px; border-radius: 12px; border: none; background: #7c3aed; color: white; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; display: none; }
+  .btn-screenshot:hover { transform: translateY(-2px); }
+  .btn-back { padding: 14px; border-radius: 12px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+  .btn-back:hover { border-color: var(--text-muted); }
+
+  /* ===== REVIEW SCREEN ===== */
+  #reviewScreen { padding: 20px; }
+  .review-header { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 700px; margin-bottom: 20px; }
+  .review-count { font-size: 0.9rem; color: var(--text-muted); }
+
+  /* ===== STATS SCREEN ===== */
+  #statsScreen { padding: 20px; }
+  .stats-content { width: 100%; max-width: 700px; }
+  .stats-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+  .stats-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 16px; }
+  .log-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+  .log-item { background: var(--surface2); border-radius: 10px; padding: 12px 16px; font-size: 0.85rem; }
+  .log-item-top { display: flex; justify-content: space-between; align-items: center; }
+  .log-type { font-weight: 600; }
+  .log-score-pass { color: var(--success); font-weight: 700; }
+  .log-score-fail { color: var(--danger); font-weight: 700; }
+  .log-score-perfect { color: var(--success); font-weight: 700; }
+  .log-meta { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+
+  /* ===== ADD BANK MODAL ===== */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100;
+    display: none; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 32px; width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto;
+  }
+  .modal-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 6px; display: block; }
+  .form-input {
+    width: 100%; padding: 12px 14px; border-radius: 10px; border: 2px solid var(--border);
+    background: var(--surface2); color: var(--text); font-size: 0.95rem; outline: none;
+    transition: border-color 0.2s;
+  }
+  .form-input:focus { border-color: var(--primary); }
+  .form-textarea { min-height: 80px; resize: vertical; }
+  .modal-btns { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-cancel { flex:1; padding:12px; border-radius:10px; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; font-size:0.95rem; }
+  .btn-confirm { flex:2; padding:12px; border-radius:10px; border:none; background:var(--primary); color:white; cursor:pointer; font-size:0.95rem; font-weight:600; }
+
+  /* Manual Q entry */
+  .q-entry { background: var(--surface2); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .q-entry-num { font-size: 0.8rem; color: var(--primary); font-weight: 600; margin-bottom: 10px; }
+  .mini-row { display: flex; gap: 8px; }
+  .mini-row .form-input { flex: 1; }
+
+  /* ===== CONFETTI CANVAS ===== */
+  #confettiCanvas { position: fixed; inset: 0; pointer-events: none; z-index: 999; }
+
+  /* ===== LEARN COMPLETE ===== */
+  .complete-box {
+    background: var(--surface); border: 1px solid var(--success); border-radius: 20px;
+    padding: 32px; text-align: center; max-width: 500px; width: 100%;
+  }
+  .complete-box h2 { color: var(--success); font-size: 1.5rem; margin-bottom: 12px; }
+  .complete-box p { color: var(--text-muted); margin-bottom: 20px; }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .login-box { padding: 28px 20px; }
+    .role-btns { flex-direction: column; }
+    .action-btns { flex-direction: column; }
+    .banks-grid { grid-template-columns: 1fr; }
+  }
+
+  .tab-indicator { width: 8px; height: 8px; border-radius: 50%; background: var(--success); display: inline-block; margin-left: 6px; }
+  .no-banks { color: var(--text-muted); text-align: center; padding: 30px; font-size: 0.95rem; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 12px; padding: 24px;
+    text-align: center; cursor: pointer; transition: all 0.2s; color: var(--text-muted);
+  }
+  .upload-zone:hover { border-color: var(--primary); color: var(--primary); }
+  .upload-zone input { display: none; }
+
+  .divider { text-align: center; color: var(--text-muted); margin: 16px 0; font-size: 0.85rem; position: relative; }
+  .divider::before, .divider::after { content: ''; position: absolute; top: 50%; width: 40%; height: 1px; background: var(--border); }
+  .divider::before { left: 0; }
+  .divider::after { right: 0; }
+
+  .exam-no-feedback { pointer-events: none !important; }
+
+  .bank-selector { margin-bottom: 20px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin-left: 6px; }
+  .tag-parent { background: rgba(99,102,241,0.2); color: #a5b4fc; }
+  .tag-student { background: rgba(16,185,129,0.2); color: #6ee7b7; }
+</style>
+</head>
+<body>
+<canvas id="confettiCanvas"></canvas>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen" class="screen active">
+  <div class="login-box">
+    <div class="login-title">📚 歷史學習平台</div>
+    <div class="login-subtitle">請選擇您的角色並輸入姓名</div>
+    <div class="role-btns">
+      <button class="role-btn selected" id="roleParent" onclick="selectRole('parent')">👨‍👩‍👧 家長登入</button>
+      <button class="role-btn" id="roleStudent" onclick="selectRole('student')">🎒 學生登入</button>
+    </div>
+    <input class="name-input" id="nameInput" type="text" placeholder="請輸入姓名（可留空使用預設名稱）" maxlength="20">
+    <button class="btn-primary" onclick="doLogin()">進入系統</button>
+  </div>
+</div>
+
+<!-- ==================== MAIN MENU ==================== -->
+<div id="mainScreen" class="screen">
+  <div class="topbar">
+    <div class="topbar-title">📚 歷史學習平台</div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="topbar-user" id="topbarUser"></span>
+      <button class="btn-sm" onclick="goStats()">📊 學習記錄</button>
+      <button class="btn-sm" onclick="doLogout()">登出</button>
+    </div>
+  </div>
+  <div class="main-content">
+    <div class="section-title">我的題庫</div>
+    <div class="banks-grid" id="banksGrid">
+      <div class="add-bank-card" onclick="openAddBankModal()">
+        <span style="font-size:1.3rem;">＋</span> 新增題庫
+      </div>
+    </div>
+    <div id="selectedBankInfo" style="display:none;">
+      <div class="progress-bar-wrap">
+        <div class="progress-label">
+          <span id="progressLabel">本區學習進度</span>
+          <span id="progressCount"></span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+      </div>
+      <div class="action-btns">
+        <button class="btn-action btn-learn" onclick="startLearn()">📖 學習模式</button>
+        <button class="btn-action btn-exam" onclick="startExam()">⚔️ 測驗模式</button>
+        <button class="btn-action btn-stats" onclick="goStats()">📊 學習記錄</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== LEARN SCREEN ==================== -->
+<div id="learnScreen" class="screen">
+  <div class="topbar" style="max-width:700px;">
+    <div class="topbar-title">📖 學習模式</div>
+    <button class="btn-sm" onclick="exitLearn()">✕ 結束學習</button>
+  </div>
+  <div class="q-container" id="learnContainer"></div>
+</div>
+
+<!-- ==================== EXAM SCREEN ==================== -->
+<div id="examScreen" class="screen">
+  <div class="topbar" style="max-width:700px;">
+    <div class="topbar-title">⚔️ 測驗模式</div>
+    <button class="btn-sm" onclick="exitExam()">✕ 結束測驗</button>
+  </div>
+  <div class="q-container" id="examContainer"></div>
+</div>
+
+<!-- ==================== RESULT SCREEN ==================== -->
+<div id="resultScreen" class="screen">
+  <div class="result-box" id="resultBox">
+    <div style="font-size:1.2rem;font-weight:700;margin-bottom:8px;">測驗結果</div>
+    <div class="result-score" id="resultScore"></div>
+    <div class="result-msg" id="resultMsg"></div>
+    <div id="resultDetail" style="font-size:0.9rem;color:var(--text-muted);margin-bottom:20px;"></div>
+    <div class="result-btns">
+      <button class="btn-screenshot" id="btnScreenshot" onclick="saveScreenshot()">📸 儲存截圖傳給爸媽</button>
+      <button class="btn-review" id="btnReview" onclick="startReview()">🔍 逐一回顧錯題</button>
+      <button class="btn-retry" onclick="retryExam()">🔄 重新測驗挑戰</button>
+      <button class="btn-back" onclick="backToMain()">← 返回主選單</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== REVIEW SCREEN ==================== -->
+<div id="reviewScreen" class="screen">
+  <div class="review-header">
+    <div class="topbar-title">🔍 錯題回顧</div>
+    <div class="review-count" id="reviewCount"></div>
+  </div>
+  <div class="q-container" id="reviewContainer"></div>
+</div>
+
+<!-- ==================== STATS SCREEN ==================== -->
+<div id="statsScreen" class="screen">
+  <div class="topbar" style="max-width:700px;">
+    <div class="topbar-title">📊 學習記錄</div>
+    <button class="btn-sm" onclick="backToMain()">← 返回</button>
+  </div>
+  <div class="stats-content" id="statsContent"></div>
+</div>
+
+<!-- ==================== ADD BANK MODAL ==================== -->
+<div class="modal-overlay" id="addBankModal">
+  <div class="modal">
+    <div class="modal-title">新增題庫</div>
+    <div class="form-group">
+      <label class="form-label">題庫名稱 *</label>
+      <input class="form-input" id="bankNameInput" placeholder="例如：歷史第一章" maxlength="30">
+    </div>
+
+    <div class="divider">選擇新增方式</div>
+
+    <div style="margin-bottom:16px;">
+      <label class="form-label">📁 上載題庫文件（PDF / CSV / JSON）</label>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <input type="file" id="fileInput" accept=".pdf,.csv,.json" onchange="handleFileUpload(event)">
+        <div style="font-size:1.8rem;margin-bottom:8px;">📄</div>
+        <div>點擊選擇文件（PDF、CSV 或 JSON）</div>
+        <div style="font-size:0.8rem;margin-top:6px;color:var(--text-muted);">PDF 會自動提取題庫名稱及所有題目</div>
+        <div style="font-size:0.8rem;margin-top:2px;color:var(--text-muted);">CSV 格式：question,A,B,C,D,answer,explanation</div>
+      </div>
+      <div id="uploadStatus" style="font-size:0.85rem;margin-top:8px;"></div>
+    </div>
+
+    <div class="divider">或手動輸入</div>
+
+    <div id="manualQList"></div>
+    <button class="btn-sm" onclick="addManualQ()" style="width:100%;margin-bottom:12px;">＋ 新增一道題目</button>
+
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeAddBankModal()">取消</button>
+      <button class="btn-confirm" onclick="confirmAddBank()">建立題庫</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== CONFIRM MODAL ==================== -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal" style="max-width:380px;text-align:center;">
+    <div style="font-size:1.5rem;margin-bottom:12px;">⚠️</div>
+    <div class="modal-title" id="confirmTitle" style="text-align:center;"></div>
+    <div id="confirmMsg" style="color:var(--text-muted);margin-bottom:24px;font-size:0.95rem;"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" id="confirmCancelBtn" onclick="closeConfirm()">取消</button>
+      <button class="btn-confirm" id="confirmOkBtn">確定</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===================== STATE =====================
+let state = {
+  user: { name: '', role: 'student' },
+  banks: {}, // { id: { name, questions:[{q,A,B,C,D,answer,explanation}], progress:{id:{correct:0}}, logs:[] } }
+  currentBankId: null,
+  // learn
+  learnQueue: [],
+  learnSessionStart: null,
+  // exam
+  examQuestions: [],
+  examAnswers: {},
+  examSessionStart: null,
+  examWrongQs: [],
+  // review
+  reviewQueue: [],
+  reviewIndex: 0,
+};
+
+const DEFAULT_NAME_PARENT = '家長';
+const DEFAULT_NAME_STUDENT = '同學';
+
+// ===================== PERSISTENCE =====================
+function saveState() {
+  localStorage.setItem('historyPlatform_v3', JSON.stringify({
+    banks: state.banks
+  }));
+}
+function loadState() {
+  try {
+    const raw = localStorage.getItem('historyPlatform_v3');
+    if (raw) {
+      const data = JSON.parse(raw);
+      state.banks = data.banks || {};
+    }
+  } catch(e) {}
+}
+
+// ===================== UTILS =====================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function fmtDate(ts) {
+  const d = new Date(ts);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}年${pad(d.getMonth()+1)}月${pad(d.getDate())}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ===================== AUDIO =====================
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playCorrect() {
+  try {
+    const ctx = getAudioCtx();
+    const notes = [523, 659, 784];
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + i*0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.1 + 0.4);
+      osc.start(ctx.currentTime + i*0.1);
+      osc.stop(ctx.currentTime + i*0.1 + 0.4);
+    });
+  } catch(e) {}
+}
+function playWrong() {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.value = 220;
+    osc.type = 'sawtooth';
+    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch(e) {}
+}
+
+// ===================== CONFETTI =====================
+const canvas = document.getElementById('confettiCanvas');
+const ctx2d = canvas.getContext('2d');
+let confettiPieces = [];
+let confettiAnim = null;
+function launchConfetti() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  confettiPieces = Array.from({length: 120}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * -canvas.height,
+    r: Math.random()*8+4,
+    color: `hsl(${Math.random()*360},80%,60%)`,
+    vy: Math.random()*4+2,
+    vx: (Math.random()-0.5)*3,
+    rot: Math.random()*360,
+    rotV: (Math.random()-0.5)*6
+  }));
+  if (confettiAnim) cancelAnimationFrame(confettiAnim);
+  function draw() {
+    ctx2d.clearRect(0,0,canvas.width,canvas.height);
+    confettiPieces.forEach(p => {
+      p.y += p.vy; p.x += p.vx; p.rot += p.rotV;
+      ctx2d.save();
+      ctx2d.translate(p.x, p.y);
+      ctx2d.rotate(p.rot * Math.PI/180);
+      ctx2d.fillStyle = p.color;
+      ctx2d.fillRect(-p.r/2, -p.r/2, p.r, p.r*0.5);
+      ctx2d.restore();
+    });
+    confettiPieces = confettiPieces.filter(p => p.y < canvas.height+20);
+    if (confettiPieces.length > 0) confettiAnim = requestAnimationFrame(draw);
+    else ctx2d.clearRect(0,0,canvas.width,canvas.height);
+  }
+  draw();
+}
+
+// ===================== LOGIN =====================
+let selectedRole = 'parent';
+function selectRole(role) {
+  selectedRole = role;
+  document.getElementById('roleParent').classList.toggle('selected', role==='parent');
+  document.getElementById('roleStudent').classList.toggle('selected', role==='student');
+}
+function doLogin() {
+  const name = document.getElementById('nameInput').value.trim() ||
+    (selectedRole === 'parent' ? DEFAULT_NAME_PARENT : DEFAULT_NAME_STUDENT);
+  state.user = { name, role: selectedRole };
+  document.getElementById('topbarUser').innerHTML =
+    `${name} <span class="tag tag-${selectedRole}">${selectedRole==='parent'?'家長':'學生'}</span>`;
+  loadState();
+  renderMain();
+  showScreen('mainScreen');
+}
+document.getElementById('nameInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+function doLogout() {
+  showScreen('loginScreen');
+  document.getElementById('nameInput').value = '';
+}
+
+// ===================== MAIN MENU =====================
+function renderMain() {
+  const grid = document.getElementById('banksGrid');
+  const bankIds = Object.keys(state.banks);
+  let html = '';
+  bankIds.forEach(id => {
+    const b = state.banks[id];
+    const total = b.questions.length;
+    const memorized = countMemorized(id);
+    html += `<div class="bank-card ${id===state.currentBankId?'selected':''}" onclick="selectBank('${id}')">
+      <button class="bank-card-del" onclick="event.stopPropagation();deleteBank('${id}')" title="刪除">✕</button>
+      <div class="bank-card-name">${escHtml(b.name)}</div>
+      <div class="bank-card-count">${total} 題 · 已熟記 ${memorized}/${total}</div>
+    </div>`;
+  });
+  html += `<div class="add-bank-card" onclick="openAddBankModal()"><span style="font-size:1.3rem;">＋</span> 新增題庫</div>`;
+  grid.innerHTML = html;
+  updateBankInfo();
+}
+function countMemorized(bankId) {
+  const b = state.banks[bankId];
+  if (!b) return 0;
+  return b.questions.filter((q,i) => (b.progress[i]||{}).correct >= 2).length;
+}
+function selectBank(id) {
+  state.currentBankId = id;
+  renderMain();
+}
+function updateBankInfo() {
+  const info = document.getElementById('selectedBankInfo');
+  if (!state.currentBankId || !state.banks[state.currentBankId]) {
+    info.style.display = 'none';
+    return;
+  }
+  info.style.display = 'block';
+  const b = state.banks[state.currentBankId];
+  const total = b.questions.length;
+  const mem = countMemorized(state.currentBankId);
+  const pct = total ? Math.round(mem/total*100) : 0;
+  document.getElementById('progressLabel').textContent = `本區學習進度 — ${state.user.name}`;
+  document.getElementById('progressCount').textContent = `${mem}/${total} (${pct}%)`;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+function deleteBank(id) {
+  showConfirm('確定刪除題庫？', `刪除「${state.banks[id].name}」將同時清除所有進度和記錄，此操作不可撤銷。`, () => {
+    delete state.banks[id];
+    if (state.currentBankId === id) state.currentBankId = null;
+    saveState();
+    renderMain();
+  });
+}
+function backToMain() {
+  renderMain();
+  showScreen('mainScreen');
+}
+
+// ===================== ADD BANK MODAL =====================
+let uploadedQuestions = [];
+let uploadedBankName = '';
+let manualQCount = 0;
+function openAddBankModal() {
+  uploadedQuestions = [];
+  uploadedBankName = '';
+  manualQCount = 0;
+  document.getElementById('bankNameInput').value = '';
+  document.getElementById('uploadStatus').textContent = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('manualQList').innerHTML = '';
+  document.getElementById('addBankModal').classList.add('active');
+  addManualQ();
+}
+function closeAddBankModal() {
+  document.getElementById('addBankModal').classList.remove('active');
+}
+function addManualQ() {
+  manualQCount++;
+  const n = manualQCount;
+  const div = document.createElement('div');
+  div.className = 'q-entry';
+  div.id = `mq_${n}`;
+  div.innerHTML = `<div class="q-entry-num">第 ${n} 題</div>
+    <div class="form-group">
+      <label class="form-label">題目</label>
+      <textarea class="form-input form-textarea" id="mq_q_${n}" placeholder="輸入題目內容" rows="2"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">選項 A</label>
+      <input class="form-input" id="mq_A_${n}" placeholder="選項 A">
+    </div>
+    <div class="form-group">
+      <label class="form-label">選項 B</label>
+      <input class="form-input" id="mq_B_${n}" placeholder="選項 B">
+    </div>
+    <div class="form-group">
+      <label class="form-label">選項 C</label>
+      <input class="form-input" id="mq_C_${n}" placeholder="選項 C">
+    </div>
+    <div class="form-group">
+      <label class="form-label">選項 D</label>
+      <input class="form-input" id="mq_D_${n}" placeholder="選項 D">
+    </div>
+    <div class="form-group">
+      <label class="form-label">正確答案（填 A / B / C / D）</label>
+      <input class="form-input" id="mq_ans_${n}" placeholder="A" maxlength="1" style="text-transform:uppercase;">
+    </div>
+    <div class="form-group">
+      <label class="form-label">詳細解析</label>
+      <textarea class="form-input form-textarea" id="mq_exp_${n}" placeholder="輸入解析說明（可留空）" rows="2"></textarea>
+    </div>`;
+  document.getElementById('manualQList').appendChild(div);
+}
+function setUploadStatus(msg, ok) {
+  const el = document.getElementById('uploadStatus');
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--success)' : ok === false ? 'var(--danger)' : 'var(--text-muted)';
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  setUploadStatus('⏳ 正在解析文件…', null);
+  uploadedBankName = '';
+
+  if (file.name.toLowerCase().endsWith('.pdf')) {
+    parsePdfFile(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        if (file.name.endsWith('.json')) {
+          uploadedQuestions = parseJsonQuestions(JSON.parse(ev.target.result));
+        } else {
+          uploadedQuestions = parseCsvQuestions(ev.target.result);
+        }
+        setUploadStatus(`✓ 成功解析 ${uploadedQuestions.length} 道題目`, true);
+      } catch(err) {
+        setUploadStatus(`✗ 解析失敗：${err.message}`, false);
+        uploadedQuestions = [];
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  }
+}
+
+async function parsePdfFile(file) {
+  try {
+    // Configure PDF.js worker
+    if (typeof pdfjsLib === 'undefined') {
+      setUploadStatus('✗ PDF 解析器未載入，請重新整理頁面', false);
+      return;
+    }
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      // join items, preserve line breaks by y-position
+      let lastY = null;
+      for (const item of content.items) {
+        if (lastY !== null && Math.abs(item.transform[5] - lastY) > 2) {
+          fullText += '\n';
+        }
+        fullText += item.str;
+        lastY = item.transform[5];
+      }
+      fullText += '\n';
+    }
+
+    const { questions, bankName } = parsePdfText(fullText, file.name);
+    uploadedQuestions = questions;
+
+    if (bankName) {
+      uploadedBankName = bankName;
+      const nameInput = document.getElementById('bankNameInput');
+      if (!nameInput.value.trim()) nameInput.value = bankName;
+    }
+
+    if (questions.length === 0) {
+      setUploadStatus('✗ 未能在 PDF 中找到題目，請確認格式是否正確', false);
+    } else {
+      setUploadStatus(`✓ 成功從 PDF 提取 ${questions.length} 道題目${bankName ? '，題庫名稱：「' + bankName + '」' : ''}`, true);
+    }
+  } catch(err) {
+    setUploadStatus(`✗ PDF 解析失敗：${err.message}`, false);
+    uploadedQuestions = [];
+  }
+}
+
+function parsePdfText(text, filename) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+  // Extract bank name: first non-empty line that looks like a title (not a question)
+  let bankName = '';
+  for (const line of lines.slice(0, 5)) {
+    if (line && !line.match(/^\d+[\.、]/) && !line.match(/^[A-D][\.、]/) && line.length > 4) {
+      bankName = line.replace(/附詳盡.*$/, '').trim();
+      break;
+    }
+  }
+  // Fallback to filename
+  if (!bankName) {
+    bankName = filename.replace(/\.[^.]+$/, '').replace(/[_\-v\d]+$/i, '').replace(/[_\-]/g, ' ').trim();
+  }
+
+  const questions = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Detect question start: line begins with number followed by . or 、or ）
+    const qMatch = line.match(/^(\d+)[\.、｡）\)]\s*(.+)/);
+    if (!qMatch) { i++; continue; }
+
+    let qNum = parseInt(qMatch[1]);
+    let qText = qMatch[2];
+    i++;
+
+    // Collect multiline question text (until we hit an option line)
+    while (i < lines.length && !lines[i].match(/^[A-D][\.、｡）\)]\s*/)) {
+      const next = lines[i];
+      // Stop if it's another question or answer line
+      if (next.match(/^\d+[\.、]/) || next.match(/^正確答案/) || next.match(/^解析/)) break;
+      qText += ' ' + next;
+      i++;
+    }
+
+    // Collect options A-D
+    const opts = { A: '', B: '', C: '', D: '' };
+    const optOrder = ['A','B','C','D'];
+    let optIdx = 0;
+    while (i < lines.length && optIdx < 4) {
+      const optLine = lines[i];
+      const optMatch = optLine.match(/^([A-D])[\.、｡）\)]\s*(.+)/);
+      if (optMatch) {
+        opts[optMatch[1]] = optMatch[2];
+        optIdx++;
+        i++;
+      } else if (optLine.match(/^正確答案/) || optLine.match(/^解析/) || optLine.match(/^\d+[\.、]/)) {
+        break;
+      } else {
+        // continuation of last option
+        if (optIdx > 0) {
+          const lastOpt = optOrder[optIdx - 1];
+          opts[lastOpt] += ' ' + optLine;
+        }
+        i++;
+      }
+    }
+
+    // Correct answer
+    let answer = '';
+    if (i < lines.length && lines[i].match(/^正確答案/)) {
+      const m = lines[i].match(/[A-D]/);
+      if (m) answer = m[0];
+      i++;
+    }
+
+    // Explanation — collect until next question or end
+    let explanation = '';
+    if (i < lines.length && lines[i].match(/^解析/)) {
+      const expLine = lines[i].replace(/^解析[：:]\s*/, '');
+      explanation = expLine;
+      i++;
+      while (i < lines.length) {
+        const next = lines[i];
+        if (next.match(/^\d+[\.、]/) || next.match(/^正確答案/) || next.match(/^解析/) || next.match(/^-\s*\d+\s*-/) || next.match(/^第.+部分/)) break;
+        explanation += ' ' + next;
+        i++;
+      }
+      explanation = explanation.trim();
+    }
+
+    if (qText && opts.A && answer) {
+      questions.push({
+        q: qText.trim(),
+        A: opts.A.trim(),
+        B: opts.B.trim(),
+        C: opts.C.trim(),
+        D: opts.D.trim(),
+        answer,
+        explanation
+      });
+    }
+  }
+
+  return { questions, bankName };
+}
+function parseJsonQuestions(data) {
+  const arr = Array.isArray(data) ? data : data.questions || [];
+  return arr.map(item => ({
+    q: item.question || item.q || '',
+    A: item.A || item.a || item.options?.[0] || '',
+    B: item.B || item.b || item.options?.[1] || '',
+    C: item.C || item.c || item.options?.[2] || '',
+    D: item.D || item.d || item.options?.[3] || '',
+    answer: (item.answer || item.correct || 'A').toUpperCase(),
+    explanation: item.explanation || item.explain || ''
+  })).filter(q => q.q && q.A);
+}
+function parseCsvQuestions(text) {
+  const lines = text.split('\n').filter(l => l.trim());
+  const header = lines[0].toLowerCase();
+  const startIdx = header.includes('question') ? 1 : 0;
+  return lines.slice(startIdx).map(line => {
+    const cols = parseCsvLine(line);
+    return {
+      q: cols[0] || '',
+      A: cols[1] || '',
+      B: cols[2] || '',
+      C: cols[3] || '',
+      D: cols[4] || '',
+      answer: (cols[5] || 'A').trim().toUpperCase(),
+      explanation: cols[6] || ''
+    };
+  }).filter(q => q.q && q.A);
+}
+function parseCsvLine(line) {
+  const result = [];
+  let cur = '';
+  let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') { inQ = !inQ; }
+    else if (line[i] === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else { cur += line[i]; }
+  }
+  result.push(cur.trim());
+  return result;
+}
+function confirmAddBank() {
+  const name = document.getElementById('bankNameInput').value.trim();
+  if (!name) { alert('請輸入題庫名稱'); return; }
+
+  let questions = [...uploadedQuestions];
+
+  // collect manual questions
+  for (let i = 1; i <= manualQCount; i++) {
+    const q = (document.getElementById(`mq_q_${i}`)?.value||'').trim();
+    const A = (document.getElementById(`mq_A_${i}`)?.value||'').trim();
+    const B = (document.getElementById(`mq_B_${i}`)?.value||'').trim();
+    const C = (document.getElementById(`mq_C_${i}`)?.value||'').trim();
+    const D = (document.getElementById(`mq_D_${i}`)?.value||'').trim();
+    const ans = (document.getElementById(`mq_ans_${i}`)?.value||'').trim().toUpperCase();
+    const exp = (document.getElementById(`mq_exp_${i}`)?.value||'').trim();
+    if (q && A) questions.push({ q, A, B, C, D, answer: ans||'A', explanation: exp });
+  }
+
+  if (questions.length === 0) { alert('請至少輸入一道題目'); return; }
+
+  const id = genId();
+  state.banks[id] = { name, questions, progress: {}, logs: [] };
+  state.currentBankId = id;
+  saveState();
+  closeAddBankModal();
+  renderMain();
+}
+
+// ===================== LEARN MODE =====================
+let learnCurrentIdx = 0;
+let learnRoundQueue = [];
+let learnAnswered = false;
+
+function startLearn() {
+  const b = state.banks[state.currentBankId];
+  if (!b || b.questions.length === 0) { alert('此題庫沒有題目'); return; }
+
+  // get unmemorized questions in order
+  const unmemorized = b.questions.map((q,i) => i).filter(i => (b.progress[i]||{}).correct < 2);
+  if (unmemorized.length === 0) {
+    showConfirm('🎉 全部熟記！', '您已熟記本題庫所有題目！是否要繼續測驗挑戰？', () => { backToMain(); startExam(); }, true);
+    return;
+  }
+
+  learnRoundQueue = unmemorized.slice(0, 10);
+  learnCurrentIdx = 0;
+  learnAnswered = false;
+  state.learnSessionStart = Date.now();
+  showScreen('learnScreen');
+  renderLearnQ();
+}
+
+function renderLearnQ() {
+  if (learnCurrentIdx >= learnRoundQueue.length) {
+    // round complete
+    const b = state.banks[state.currentBankId];
+    const elapsed = Math.round((Date.now() - state.learnSessionStart) / 60000);
+    b.logs.push({ user: state.user.name, type: 'learn', time: Date.now(), elapsed });
+    saveState();
+    document.getElementById('learnContainer').innerHTML = `
+      <div class="complete-box">
+        <h2>🎉 本輪完成！</h2>
+        <p>您已完成本輪 ${learnRoundQueue.length} 題的溫習！<br>繼續學習下一批，或進行測驗挑戰。</p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn-action btn-learn" onclick="startLearn()" style="min-width:140px;">繼續學習</button>
+          <button class="btn-action btn-exam" onclick="exitLearn();startExam()" style="min-width:140px;">測驗挑戰</button>
+          <button class="btn-sm" onclick="exitLearn()" style="margin-top:0;">返回主選單</button>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const b = state.banks[state.currentBankId];
+  const qIdx = learnRoundQueue[learnCurrentIdx];
+  const q = b.questions[qIdx];
+  const prog = b.progress[qIdx] || { correct: 0 };
+  learnAnswered = false;
+
+  document.getElementById('learnContainer').innerHTML = `
+    <div class="q-header">
+      <div class="q-progress">第 ${learnCurrentIdx+1} / ${learnRoundQueue.length} 題（需答對兩次，已答對 ${prog.correct}/2）</div>
+    </div>
+    <div class="q-card">
+      <div class="q-text">${escHtml(q.q)}</div>
+      <div class="options" id="learnOptions">
+        ${['A','B','C','D'].map(opt => q[opt] ? `<button class="option-btn" id="lopt_${opt}" onclick="learnAnswer('${opt}', ${qIdx})">${opt}. ${escHtml(q[opt])}</button>` : '').join('')}
+      </div>
+      <div id="learnExplanation"></div>
+    </div>`;
+}
+
+function learnAnswer(chosen, qIdx) {
+  if (learnAnswered) return;
+  learnAnswered = true;
+  const b = state.banks[state.currentBankId];
+  const q = b.questions[qIdx];
+  if (!b.progress[qIdx]) b.progress[qIdx] = { correct: 0 };
+  const prog = b.progress[qIdx];
+  const isCorrect = chosen === q.answer;
+
+  ['A','B','C','D'].forEach(opt => {
+    const btn = document.getElementById(`lopt_${opt}`);
+    if (!btn) return;
+    btn.disabled = true;
+    if (opt === q.answer) btn.classList.add('correct');
+    if (opt === chosen && !isCorrect) btn.classList.add('wrong');
+  });
+
+  if (isCorrect) {
+    playCorrect();
+    launchConfetti();
+    prog.correct = (prog.correct || 0) + 1;
+    if (prog.correct < 2) {
+      learnRoundQueue.push(qIdx); // need one more correct
+    }
+  } else {
+    playWrong();
+    const wrongBtn = document.getElementById(`lopt_${chosen}`);
+    if (wrongBtn) wrongBtn.classList.add('shake');
+    prog.correct = 0;
+    learnRoundQueue.push(qIdx); // reset
+  }
+  saveState();
+
+  // show explanation
+  const expDiv = document.getElementById('learnExplanation');
+  expDiv.innerHTML = `<div class="explanation-card">
+    <div class="explanation-title">💡 解答與摘要</div>
+    <div class="explanation-text">${q.explanation ? escHtml(q.explanation) : (isCorrect ? '答對了！繼續加油！' : `正確答案是 ${q.answer}。`)}</div>
+    <button class="btn-understood" onclick="learnNext()">明白了 →</button>
+  </div>`;
+}
+
+function learnNext() {
+  learnCurrentIdx++;
+  renderLearnQ();
+}
+function exitLearn() {
+  backToMain();
+}
+
+// ===================== EXAM MODE =====================
+let examCurrentIdx = 0;
+let examAnswered = {};
+
+function startExam() {
+  const b = state.banks[state.currentBankId];
+  if (!b || b.questions.length === 0) { alert('此題庫沒有題目'); return; }
+
+  const mem = countMemorized(state.currentBankId);
+  const total = b.questions.length;
+  if (mem < total) {
+    showConfirm('⚠️ 尚未完全熟記', `目前熟記進度：${mem}/${total}，建議先完成學習模式。\n確定要開始測驗嗎？`, () => beginExam());
+    return;
+  }
+  beginExam();
+}
+
+function beginExam() {
+  const b = state.banks[state.currentBankId];
+  const qs = [...b.questions];
+  const shuffledIdxs = shuffle(qs.map((_,i)=>i));
+  state.examQuestions = shuffledIdxs.map(i => ({
+    ...b.questions[i],
+    origIdx: i,
+    shuffledOpts: shuffle(['A','B','C','D'].filter(k => b.questions[i][k]))
+  }));
+  examAnswered = {};
+  examCurrentIdx = 0;
+  state.examSessionStart = Date.now();
+  showScreen('examScreen');
+  renderExamQ();
+}
+
+function renderExamQ() {
+  const total = state.examQuestions.length;
+  if (examCurrentIdx >= total) {
+    finishExam();
+    return;
+  }
+  const qObj = state.examQuestions[examCurrentIdx];
+  document.getElementById('examContainer').innerHTML = `
+    <div class="q-header">
+      <div class="q-progress">第 ${examCurrentIdx+1} / ${total} 題</div>
+      <div class="q-progress">${Object.keys(examAnswered).length} 已作答</div>
+    </div>
+    <div class="q-card">
+      <div class="q-text">${escHtml(qObj.q)}</div>
+      <div class="options" id="examOptions">
+        ${qObj.shuffledOpts.map(opt => `<button class="option-btn" id="eopt_${opt}" onclick="examAnswer('${opt}')">${opt}. ${escHtml(qObj[opt])}</button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function examAnswer(chosen) {
+  if (examAnswered[examCurrentIdx] !== undefined) return;
+  examAnswered[examCurrentIdx] = chosen;
+  // just highlight selected briefly then move on
+  const btn = document.getElementById(`eopt_${chosen}`);
+  if (btn) { btn.style.borderColor = 'var(--primary)'; btn.style.background = 'rgba(79,70,229,0.2)'; }
+  setTimeout(() => { examCurrentIdx++; renderExamQ(); }, 400);
+}
+
+function finishExam() {
+  const total = state.examQuestions.length;
+  let correct = 0;
+  const wrongQs = [];
+  state.examQuestions.forEach((qObj, i) => {
+    if (examAnswered[i] === qObj.answer) { correct++; }
+    else { wrongQs.push({ qObj, chosen: examAnswered[i] }); }
+  });
+  const score = Math.round(correct / total * 100 * 10) / 10;
+  state.examWrongQs = wrongQs;
+
+  const elapsed = Math.round((Date.now() - state.examSessionStart) / 60000);
+  const b = state.banks[state.currentBankId];
+  b.logs.push({ user: state.user.name, type: 'exam', time: Date.now(), elapsed, score });
+  saveState();
+
+  // render result
+  const scoreEl = document.getElementById('resultScore');
+  const msgEl = document.getElementById('resultMsg');
+  const detailEl = document.getElementById('resultDetail');
+  const btnReview = document.getElementById('btnReview');
+  const btnScreenshot = document.getElementById('btnScreenshot');
+
+  scoreEl.textContent = score + '分';
+  scoreEl.className = 'result-score';
+  if (score === 100) {
+    scoreEl.classList.add('perfect');
+    msgEl.textContent = '🎉 滿分！太厲害了！';
+    btnScreenshot.style.display = 'block';
+    btnReview.style.display = 'none';
+    launchConfetti();
+    playCorrect();
+  } else if (score >= 90) {
+    scoreEl.classList.add('good');
+    msgEl.textContent = '差點就可滿分，要再試嗎？';
+    btnReview.style.display = 'block';
+    btnScreenshot.style.display = 'none';
+  } else if (score >= 60) {
+    scoreEl.classList.add('good');
+    msgEl.textContent = '尚待努力，要再試嗎？';
+    btnReview.style.display = 'block';
+    btnScreenshot.style.display = 'none';
+  } else {
+    scoreEl.classList.add('fail');
+    msgEl.textContent = '不夠 60 分為不合格，要再試嗎？';
+    btnReview.style.display = 'block';
+    btnScreenshot.style.display = 'none';
+  }
+  detailEl.textContent = `答對 ${correct} / ${total} 題 · 耗時 ${elapsed} 分鐘`;
+  showScreen('resultScreen');
+}
+
+function retryExam() { beginExam(); }
+function exitExam() { backToMain(); }
+
+// ===================== REVIEW MODE =====================
+function startReview() {
+  if (state.examWrongQs.length === 0) { backToMain(); return; }
+  state.reviewQueue = [...state.examWrongQs];
+  state.reviewIndex = 0;
+  showScreen('reviewScreen');
+  renderReviewQ();
+}
+
+function renderReviewQ() {
+  if (state.reviewIndex >= state.reviewQueue.length) {
+    // done reviewing
+    showScreen('resultScreen');
+    return;
+  }
+  const total = state.reviewQueue.length;
+  document.getElementById('reviewCount').textContent = `${state.reviewIndex+1} / ${total} 道錯題`;
+  const { qObj, chosen } = state.reviewQueue[state.reviewIndex];
+  document.getElementById('reviewContainer').innerHTML = `
+    <div class="q-card" style="max-width:700px;width:100%;">
+      <div class="q-text">${escHtml(qObj.q)}</div>
+      <div class="options">
+        ${['A','B','C','D'].filter(o=>qObj[o]).map(opt => {
+          let cls = '';
+          if (opt === qObj.answer) cls = 'correct';
+          else if (opt === chosen) cls = 'wrong';
+          return `<button class="option-btn ${cls}" disabled>${opt}. ${escHtml(qObj[opt])}</button>`;
+        }).join('')}
+      </div>
+      <div class="explanation-card" style="margin-top:16px;">
+        <div class="explanation-title">💡 解答與摘要</div>
+        <div class="explanation-text">${qObj.explanation ? escHtml(qObj.explanation) : `正確答案是 ${qObj.answer}。`}</div>
+        <button class="btn-understood" onclick="reviewNext()">我明白了，下一題 →</button>
+      </div>
+    </div>`;
+}
+
+function reviewNext() {
+  state.reviewIndex++;
+  renderReviewQ();
+}
+
+// ===================== STATS =====================
+function goStats() {
+  const content = document.getElementById('statsContent');
+  let html = '';
+  Object.entries(state.banks).forEach(([id, b]) => {
+    const mem = countMemorized(id);
+    const total = b.questions.length;
+    const pct = total ? Math.round(mem/total*100) : 0;
+    html += `<div class="stats-card">
+      <div class="stats-title">📚 ${escHtml(b.name)}</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-label"><span>熟記進度</span><span>${mem}/${total} (${pct}%)</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <div class="log-list">`;
+    if (b.logs.length === 0) {
+      html += `<div style="color:var(--text-muted);font-size:0.85rem;">暫無記錄</div>`;
+    } else {
+      [...b.logs].reverse().forEach(log => {
+        const typeLabel = log.type === 'exam' ? '⚔️ 測驗' : '📖 學習';
+        let scoreHtml = '';
+        if (log.type === 'exam' && log.score !== undefined) {
+          const cls = log.score === 100 ? 'log-score-perfect' : log.score >= 60 ? 'log-score-pass' : 'log-score-fail';
+          scoreHtml = `<span class="${cls}">${log.score} 分</span>`;
+        }
+        html += `<div class="log-item">
+          <div class="log-item-top">
+            <span class="log-type">${typeLabel} — ${escHtml(log.user)}</span>
+            ${scoreHtml}
+          </div>
+          <div class="log-meta">📅 ${fmtDate(log.time)} · ⏱ ${log.elapsed || 0} 分鐘</div>
+        </div>`;
+      });
+    }
+    html += `</div></div>`;
+  });
+  if (!html) html = `<div class="stats-card"><div class="no-banks">尚無學習記錄，請先建立題庫並開始學習。</div></div>`;
+  content.innerHTML = html;
+  showScreen('statsScreen');
+}
+
+// ===================== SCREENSHOT =====================
+async function saveScreenshot() {
+  const b = state.banks[state.currentBankId];
+  const bankName = b ? b.name : '題庫';
+  const score = document.getElementById('resultScore').textContent;
+  const detail = document.getElementById('resultDetail').textContent;
+  const now = fmtDate(Date.now());
+
+  // create offscreen canvas
+  const c = document.createElement('canvas');
+  c.width = 600; c.height = 400;
+  const cx = c.getContext('2d');
+
+  // bg gradient
+  const grad = cx.createLinearGradient(0,0,600,400);
+  grad.addColorStop(0, '#1e1b4b');
+  grad.addColorStop(1, '#0f172a');
+  cx.fillStyle = grad;
+  cx.fillRect(0,0,600,400);
+
+  // border
+  cx.strokeStyle = '#10b981';
+  cx.lineWidth = 4;
+  cx.strokeRect(8,8,584,384);
+
+  // title
+  cx.fillStyle = '#f1f5f9';
+  cx.font = 'bold 26px sans-serif';
+  cx.textAlign = 'center';
+  cx.fillText('🎉 歷史學習平台 — 滿分！', 300, 70);
+
+  // name & bank
+  cx.font = '20px sans-serif';
+  cx.fillStyle = '#a5b4fc';
+  cx.fillText(`${state.user.name} · ${bankName}`, 300, 110);
+
+  // score
+  cx.font = 'bold 100px sans-serif';
+  cx.fillStyle = '#10b981';
+  cx.fillText('100', 300, 230);
+
+  cx.font = 'bold 26px sans-serif';
+  cx.fillStyle = '#10b981';
+  cx.fillText('分', 300, 270);
+
+  // detail
+  cx.font = '16px sans-serif';
+  cx.fillStyle = '#94a3b8';
+  cx.fillText(detail, 300, 320);
+  cx.fillText(now, 300, 350);
+
+  // download
+  const a = document.createElement('a');
+  a.href = c.toDataURL('image/png');
+  a.download = `歷史學習滿分_${state.user.name}_${now.replace(/[年月日 :]/g,'')}.png`;
+  a.click();
+}
+
+// ===================== CONFIRM MODAL =====================
+let confirmCallback = null;
+function showConfirm(title, msg, cb, hideCancel = false) {
+  confirmCallback = cb;
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').textContent = msg;
+  document.getElementById('confirmCancelBtn').style.display = hideCancel ? 'none' : '';
+  document.getElementById('confirmOkBtn').onclick = () => { closeConfirm(); if(cb) cb(); };
+  document.getElementById('confirmModal').classList.add('active');
+}
+function closeConfirm() {
+  document.getElementById('confirmModal').classList.remove('active');
+}
+
+// ===================== HTML ESCAPE =====================
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\n/g,'<br>');
+}
+
+// ===================== INIT =====================
+loadState();
+</script>
+</body>
+</html>
