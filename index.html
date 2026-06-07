@@ -614,12 +614,14 @@ function renderMain() {
     const total = b.questions.length;
     const memorized = countMemorized(id);
     html += `<div class="bank-card ${id===state.currentBankId?'selected':''}" onclick="selectBank('${id}')">
-      <button class="bank-card-del" onclick="event.stopPropagation();deleteBank('${id}')" title="刪除">✕</button>
+      ${state.user.role === 'parent' ? `<button class="bank-card-del" onclick="event.stopPropagation();deleteBank('${id}')" title="刪除">✕</button>` : ''}
       <div class="bank-card-name">${escHtml(b.name)}</div>
       <div class="bank-card-count">${total} 題 · 已熟記 ${memorized}/${total}</div>
     </div>`;
   });
-  html += `<div class="add-bank-card" onclick="openAddBankModal()"><span style="font-size:1.3rem;">＋</span> 新增題庫</div>`;
+  if (state.user.role === 'parent') {
+    html += `<div class="add-bank-card" onclick="openAddBankModal()"><span style="font-size:1.3rem;">＋</span> 新增題庫</div>`;
+  }
   grid.innerHTML = html;
   updateBankInfo();
 }
