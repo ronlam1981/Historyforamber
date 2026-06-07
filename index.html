@@ -994,6 +994,7 @@ function confirmAddBank() {
 // ===================== LEARN MODE =====================
 let learnCurrentIdx = 0;
 let learnRoundQueue = [];
+let learnRoundInitialSize = 0;
 let learnAnswered = false;
 
 function startLearn() {
@@ -1008,6 +1009,7 @@ function startLearn() {
   }
 
   learnRoundQueue = unmemorized.slice(0, 10);
+  learnRoundInitialSize = learnRoundQueue.length;
   learnCurrentIdx = 0;
   learnAnswered = false;
   state.learnSessionStart = Date.now();
@@ -1043,7 +1045,8 @@ function renderLearnQ() {
 
   document.getElementById('learnContainer').innerHTML = `
     <div class="q-header">
-      <div class="q-progress">第 ${learnCurrentIdx+1} / ${learnRoundQueue.length} 題（需答對兩次，已答對 ${prog.correct}/2）</div>
+      <div class="q-progress">本輪第 ${Math.min(learnCurrentIdx+1, learnRoundInitialSize)} / ${learnRoundInitialSize} 題（需答對兩次，已答對 ${prog.correct}/2）</div>
+      <div class="q-progress">題庫共 ${b.questions.length} 題</div>
     </div>
     <div class="q-card">
       <div class="q-text">${escHtml(q.q)}</div>
