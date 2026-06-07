@@ -626,7 +626,7 @@ function renderMain() {
 function countMemorized(bankId) {
   const b = state.banks[bankId];
   if (!b) return 0;
-  return b.questions.filter((q,i) => (b.progress[i]||{}).correct >= 2).length;
+  return b.questions.filter((q,i) => ((b.progress[i]||{}).correct || 0) >= 2).length;
 }
 function selectBank(id) {
   state.currentBankId = id;
@@ -976,7 +976,7 @@ function startLearn() {
   if (!b || b.questions.length === 0) { alert('此題庫沒有題目'); return; }
 
   // get unmemorized questions in order
-  const unmemorized = b.questions.map((q,i) => i).filter(i => (b.progress[i]||{}).correct < 2);
+  const unmemorized = b.questions.map((q,i) => i).filter(i => ((b.progress[i]||{}).correct || 0) < 2);
   if (unmemorized.length === 0) {
     showConfirm('🎉 全部熟記！', '您已熟記本題庫所有題目！是否要繼續測驗挑戰？', () => { backToMain(); startExam(); }, true);
     return;
